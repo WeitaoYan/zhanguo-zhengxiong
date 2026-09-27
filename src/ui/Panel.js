@@ -16,7 +16,7 @@ const ROW_H = 46
 const HEAD_H = 96
 const FOOT_H = 74
 const NAME_W = 150
-// 5 列：步兵营 / 骑兵营 / 军械库 / 兵力系数 / 城墙
+// 5 列：步兵营 / 骑兵营 / 军械库 / 神机营 / 城墙
 const COL_X = [NAME_W, NAME_W + 160, NAME_W + 320, NAME_W + 480, NAME_W + 640]
 // 列数跟着 BRANCHES 走：以后再加一条分支，面板不用改这里
 const COLS = BRANCHES.length
@@ -28,7 +28,7 @@ const KEY_LABELS = {
   infantry: '步兵营',
   cavalry: '骑兵营',
   armory: '军械库',
-  corps: '兵力系数',
+  corps: '神机营',
   wall: '城墙'
 }
 
@@ -429,7 +429,7 @@ export class Panel {
         `（可负担：${spendableGold(city) >= cost ? '是' : '否'}）。`
     }
 
-    // 兵力系数：不产税、不带兵，攻守两端同时上浮，是纯战力投资。
+    // 神机营：不产税、不带兵，攻守两端同时上浮，是纯战力投资。
     if (key === 'corps') {
       const lv = levelOf(city, key)
       const now = corpsFactor(city)
@@ -437,10 +437,10 @@ export class Panel {
       const cost = lv >= MAX_LEVEL ? null : upgradeCost(city, key)
       const step = `每级 +${Math.round(CORPS_STEP * 100)}%`
       if (cost == null) {
-        return `兵力系数 已是最高等级 ×${now.toFixed(2)}，当前战力 野战 ${Math.round(cityPower(city))}` +
+        return `神机营 已是最高等级 ×${now.toFixed(2)}，当前战力 野战 ${Math.round(cityPower(city))}` +
           `　守城 ${Math.round(defenderPower(city))}。`
       }
-      return `兵力系数 升一级后 ×${now.toFixed(2)} → ×${next.toFixed(2)}（${step}，攻守双吃）。\n` +
+      return `神机营 升一级后 ×${now.toFixed(2)} → ×${next.toFixed(2)}（${step}，攻守双吃）。\n` +
         `野战战力 ${Math.round(cityPower(city))} → ${Math.round(cityPower(city) * next / now)}　` +
         `守城战力 ${Math.round(defenderPower(city))} → ${Math.round(defenderPower(city) * next / now)}` +
         `　需 ${cost} 金（可负担：${spendableGold(city) >= cost ? '是' : '否'}）。`
