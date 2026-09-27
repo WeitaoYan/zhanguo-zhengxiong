@@ -1,7 +1,7 @@
 {
-  "name": "market-demo",
+  "name": "zhanguo-zhengxiong",
   "version": "1.0.0",
-  "description": "Phaser 4 2D Cartoon Market Demo",
+  "description": "战国争霸 - Phaser 4 2D 攻城策略 Demo",
   "private": true,
   "type": "module",
   "scripts": {
