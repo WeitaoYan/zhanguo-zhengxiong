@@ -14,7 +14,8 @@ const BARRACK_BODY = { w: 76, h: 62 }
 export const BARRACK_CN = {
   infantry: '步兵营',
   cavalry: '骑兵营',
-  armory: '军械库'
+  armory: '军械库',
+  corps: '神机营'
 }
 
 const COLLIDABLE_PROPS = {
@@ -58,11 +59,6 @@ export class CityBuilder {
       bar.badge.setText(`${'★'.repeat(lv)}${maxed ? '' : '☆'.repeat(MAX_LEVEL - lv)}`)
       bar.badge.setColor(maxed ? '#ffd45e' : bar.city.owner === 'player' ? '#cfe0f0' : '#9aa4ae')
       bar.img.setTint(bar.city.owner === 'player' ? 0xffffff : 0x9aa8b4)
-      // 军械库底下再挂一行神机营：这是它旗下新增的编制改良，
-      // 不进面板也该在城里看得见自己练到几级了。
-      if (bar.corpsBadge) {
-        bar.corpsBadge.setText(`神机营 Lv${levelOf(bar.city, 'corps')}`)
-      }
     }
   }
 
@@ -211,20 +207,7 @@ export class CityBuilder {
       }).setOrigin(0.5).setDepth(6)
       this.decor.push(badge)
 
-      // 军械库额外挂一行神机营
-      let corpsBadge = null
-      if (b.key === 'armory') {
-        corpsBadge = scene.add.text(x, y - 60, `神机营 Lv${levelOf(city, 'corps')}`, {
-          fontSize: '11px',
-          fontFamily: 'Arial',
-          color: '#ffd48a',
-          stroke: '#000000',
-          strokeThickness: 3
-        }).setOrigin(0.5).setDepth(6)
-        this.decor.push(corpsBadge)
-      }
-
-      this.barracks.push({ city, key: b.key, x, y: y - BARRACK_BODY.h / 2, name, badge, corpsBadge, img })
+      this.barracks.push({ city, key: b.key, x, y: y - BARRACK_BODY.h / 2, name, badge, img })
     }
 
     // 道具

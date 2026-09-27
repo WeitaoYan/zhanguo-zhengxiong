@@ -21,7 +21,7 @@ export const VILLAGER_SPOTS = [
 export const PROPS = [
   { key: 'crate', x: 220, y: 250 }, { key: 'crate', x: 240, y: 262 },
   { key: 'obj_barrel', x: 380, y: 250 },
-  { key: 'obj_barrel', x: 1000, y: 300 },
+  { key: 'obj_barrel', x: 1030, y: 300 },
   { key: 'crate', x: 600, y: 600 }, { key: 'obj_barrel', x: 624, y: 612 },
   { key: 'well', x: 480, y: 360 },
   { key: 'sign', x: 480, y: 84 },
@@ -50,11 +50,13 @@ export const HOUSES = [
   { x: 1100, y: 1100, v: 1 }, { x: 1360, y: 1085, v: 0 }
 ]
 
-// 三座军营沿校场北侧一字排开，紧挨着，方便玩家在城门口集中管理。
+// 四座军营沿校场北侧一字排开，紧挨着，方便玩家在城门口集中管理。
+// 城墙没有独立建筑（就是城本身），所以这里只有四座军营。
 export const BARRACKS = [
   { key: 'infantry', x: 420, y: 300 },
   { key: 'cavalry', x: 600, y: 300 },
-  { key: 'armory', x: 780, y: 300 }
+  { key: 'armory', x: 780, y: 300 },
+  { key: 'corps', x: 960, y: 300 }
 ]
 
 const SHOP_NAMES = [

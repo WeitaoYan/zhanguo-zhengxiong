@@ -651,12 +651,13 @@ export class BootScene extends Scene {
       })
     })
 
-    // --- 三座军营：步兵营 / 骑兵营 / 军械库 ---
+    // --- 四座军营：步兵营 / 骑兵营 / 军械库 / 神机营 ---
     // 同一套土墙+木架结构，靠旗帜、器械和配色区分职能，远看就能认出。
     const barrackDefs = [
       { key: 'infantry', wall: '#9c8b6a', roof: '#8a5a3c', flag: '#b8443a', tool: 'spear' },
       { key: 'cavalry', wall: '#a89878', roof: '#6d5a44', flag: '#3a72b8', tool: 'horse' },
-      { key: 'armory', wall: '#8f8a80', roof: '#5f5a52', flag: '#c8a23a', tool: 'anvil' }
+      { key: 'armory', wall: '#8f8a80', roof: '#5f5a52', flag: '#c8a23a', tool: 'anvil' },
+      { key: 'corps', wall: '#8d7f6d', roof: '#6a4a34', flag: '#e07a2c', tool: 'cannon' }
     ]
     barrackDefs.forEach((b) => {
       this.makeTex(`barracks_${b.key}`, 88, 84, (ctx) => {
@@ -735,6 +736,32 @@ export class BootScene extends Scene {
           ctx.fill()
           ctx.fillStyle = '#241a12'
           ctx.fillRect(24, 60, 2, 2)
+        } else if (b.tool === 'cannon') {
+          // 神机营：炮车 + 火炮 + 炮口火光
+          ctx.fillStyle = '#5a3f28'
+          ctx.fillRect(18, 70, 28, 5)
+          ctx.fillStyle = '#2f2a26'
+          ctx.beginPath()
+          ctx.arc(24, 76, 5, 0, Math.PI * 2)
+          ctx.arc(40, 76, 5, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.save()
+          ctx.translate(26, 68)
+          ctx.rotate(-0.45)
+          ctx.fillStyle = '#54555e'
+          ctx.fillRect(0, -4, 34, 8)
+          ctx.fillStyle = '#6d6e78'
+          ctx.fillRect(27, -5, 7, 10)
+          ctx.restore()
+          ctx.fillStyle = '#ffb347'
+          ctx.beginPath()
+          ctx.moveTo(58, 52); ctx.lineTo(75, 40); ctx.lineTo(66, 60)
+          ctx.closePath()
+          ctx.fill()
+          ctx.fillStyle = 'rgba(255,255,255,0.7)'
+          ctx.beginPath()
+          ctx.arc(70, 44, 6, 0, Math.PI * 2)
+          ctx.fill()
         } else {
           // 铁砧与箭靶
           ctx.fillStyle = '#4a4a52'
