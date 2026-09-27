@@ -17,7 +17,9 @@ const config = {
   scene: [BootScene, WorldScene],
   scale: {
     mode: Scale.FIT,
-    autoCenter: Scale.CENTER_BOTH
+    // Phaser 的 CENTER_BOTH 只写 margin-left / margin-top，不写右边和下边，
+    // 叠在 body 的 flex 居中上会把画布整体推歪。居中交给 CSS，这里必须关掉。
+    autoCenter: Scale.NO_CENTER
   },
   pixelArt: false,
   roundPixels: true
