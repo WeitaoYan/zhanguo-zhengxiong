@@ -98,6 +98,34 @@ export class WorldScene extends Scene {
     })
     this.stageSelect.show(true)
     this.selecting = true
+
+    // ?debug=1 临时诊断：统计 DOM 层 vs Phaser 层的 pointerdown，
+    // 定位"点击无反应"是事件没进页面还是没进 Phaser。
+    // 诊断完就删掉，不进正式版本。
+    if (new URLSearchParams(window.location.search).get('debug') === '1') {
+      const st = { dom: 0, phaser: 0 }
+      window.addEventListener('pointerdown', () => st.dom++, true)
+      this.input.on('pointerdown', () => st.phaser++)
+      const dbg = this.add.text(8, 648, '', {
+        fontSize: '13px', fontFamily: 'monospace', color: '#00ff00',
+        backgroundColor: 'rgba(0,0,0,0.8)', padding: { x: 6, y: 4 },
+        lineSpacing: 4
+      }).setScrollFactor(0).setDepth(999)
+      this.time.addEvent({
+        delay: 400,
+        loop: true,
+        callback: () => {
+          const ss = this.stageSelect
+          const r0 = ss?.rows[0]?.hl
+          dbg.setText(
+            `domDown=${st.dom} phaserDown=${st.phaser} input.enabled=${this.input.enabled}\n` +
+            `touch=${this.isTouch} ss.visible=${ss?.visible} c.visible=${ss?.c.visible}\n` +
+            `row.input=${!!r0?.input} row.enabled=${!!(r0?.input && r0.input.enabled)}\n` +
+            `btn.input=${!!(ss?.startBtn && ss.startBtn.bg.input)}`
+          )
+        }
+      })
+    }
   }
 
   // 每 2 秒推进一次：玩家城池收税并发饷，NPC 城池自行发展，
