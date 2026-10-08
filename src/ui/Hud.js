@@ -1,8 +1,10 @@
+import { Geom } from 'phaser'
 import { WORLD_W, WORLD_H, cityBox } from '../world/layout.js'
 import { CITIES, canAttack, totalTroops, totalGold } from '../data/cities.js'
 import { defenderPower, troopCount, goldPerTick, upkeepPerTick, TICK_MS } from '../data/military.js'
 import { DIFFICULTIES, difficultyOf } from '../data/difficulty.js'
 import { currentStage, stageSummary } from '../data/stages.js'
+import { FONT_UI, FONT_TITLE, C } from './theme.js'
 
 const MM_W = 208
 const MM_H = Math.round((WORLD_H / WORLD_W) * MM_W)
@@ -12,8 +14,11 @@ const MAP_POS = { x: 1024 - MM_W - 12, y: 12 }
 const LEDGER = { x: 1024 / 2 - 230, y: 96, w: 460, rowH: 26 }
 
 export class Hud {
-  constructor(scene) {
+  constructor(scene, opts = {}) {
     this.scene = scene
+    this.touch = !!opts.touch
+    // 对话框被点按时回调（触屏：点按继续对话）
+    this.onDialogueTap = null
     this.tweens = scene.tweens
     this.mapTex = null
     this.buildStatus()
@@ -36,7 +41,7 @@ export class Hud {
     c.add(bg)
 
     this.alertText = scene.add.text(0, 0, '', {
-      fontSize: '12px', fontFamily: 'Arial', color: '#ffb4b4'
+      fontSize: '12px', fontFamily: FONT_UI, color: '#ffb4b4'
     }).setOrigin(0.5)
     c.add(this.alertText)
 
@@ -70,22 +75,22 @@ export class Hud {
     c.add(bg)
 
     c.add(scene.add.text(LEDGER.w / 2, 20, '城 池 名 册', {
-      fontSize: '19px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+      fontSize: '19px', fontFamily: FONT_UI, color: '#ffcc00', fontStyle: 'bold'
     }).setOrigin(0.5))
 
     this.ledgerRows = []
     for (let i = 0; i < CITIES.length; i++) {
       const name = scene.add.text(20, 44 + i * LEDGER.rowH, '', {
-        fontSize: '13px', fontFamily: 'Arial', color: '#ffffff'
+        fontSize: '13px', fontFamily: FONT_UI, color: '#ffffff'
       })
       const owner = scene.add.text(110, 44 + i * LEDGER.rowH, '', {
-        fontSize: '13px', fontFamily: 'Arial', color: '#cccccc'
+        fontSize: '13px', fontFamily: FONT_UI, color: '#cccccc'
       })
       const diff = scene.add.text(200, 44 + i * LEDGER.rowH, '', {
-        fontSize: '13px', fontFamily: 'Arial', color: '#aaaaaa'
+        fontSize: '13px', fontFamily: FONT_UI, color: '#aaaaaa'
       })
       const stat = scene.add.text(LEDGER.w - 20, 44 + i * LEDGER.rowH, '', {
-        fontSize: '13px', fontFamily: 'Arial', color: '#aaaaaa'
+        fontSize: '13px', fontFamily: FONT_UI, color: '#aaaaaa'
       }).setOrigin(1, 0)
       c.add([name, owner, diff, stat])
       this.ledgerRows.push({ name, owner, diff, stat })
@@ -94,7 +99,7 @@ export class Hud {
     this.ledgerHint = scene.add.text(
       LEDGER.w / 2, 44 + CITIES.length * LEDGER.rowH + 2,
       '红框＝可攻打（与领地相邻）　M 关闭', {
-        fontSize: '12px', fontFamily: 'Arial', color: '#8899aa'
+        fontSize: '12px', fontFamily: FONT_UI, color: '#8899aa'
       }).setOrigin(0.5)
     c.add(this.ledgerHint)
 
@@ -139,28 +144,30 @@ export class Hud {
     const scene = this.scene
     const c = scene.add.container(PANEL.x, PANEL.y).setDepth(100).setScrollFactor(0)
 
-    const bg = scene.add.rectangle(0, 0, PANEL.w, PANEL.h, 0x0d0f18, 0.78)
-    bg.setOrigin(0, 0).setStrokeStyle(1, 0xffcc00)
+    const bg = scene.add.rectangle(0, 0, PANEL.w, PANEL.h, 0x101319, 0.88)
+    bg.setOrigin(0, 0).setStrokeStyle(1.5, 0xffcc00)
     c.add(bg)
+    // 顶部金线压边，玄底金文的味道
+    c.add(scene.add.rectangle(0, 0, PANEL.w, 3, 0xffcc00, 0.85).setOrigin(0, 0))
 
     this.armyText = scene.add.text(12, 8, '', {
-      fontSize: '15px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+      fontSize: '15px', fontFamily: FONT_UI, color: '#ffcc00', fontStyle: 'bold'
     })
     c.add(this.armyText)
 
     this.ownedText = scene.add.text(12, 30, '', {
-      fontSize: '13px', fontFamily: 'Arial', color: '#ffffff'
+      fontSize: '13px', fontFamily: FONT_UI, color: '#ffffff'
     })
     c.add(this.ownedText)
 
     // 关卡与难度配比：一局游戏的压力曲线，放在最显眼的位置
     this.stageText = scene.add.text(12, 50, '', {
-      fontSize: '11px', fontFamily: 'Arial', color: '#ffcc33'
+      fontSize: '11px', fontFamily: FONT_UI, color: '#ffcc33'
     })
     c.add(this.stageText)
 
     this.placeText = scene.add.text(12, 68, '', {
-      fontSize: '12px', fontFamily: 'Arial', color: '#9fd8ff'
+      fontSize: '12px', fontFamily: FONT_UI, color: '#9fd8ff'
     })
     c.add(this.placeText)
 
@@ -185,7 +192,7 @@ export class Hud {
     c.add(this.mapDot)
 
     this.mapLabel = scene.add.text(4, MM_H + 12, '', {
-      fontSize: '11px', fontFamily: 'Arial', color: '#cccccc'
+      fontSize: '11px', fontFamily: FONT_UI, color: '#cccccc'
     })
     c.add(this.mapLabel)
 
@@ -277,28 +284,34 @@ export class Hud {
     c.add(scene.add.image(0, 0, 'dialogue_bg'))
 
     this.dlgName = scene.add.text(-270, -44, '', {
-      fontSize: '18px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+      fontSize: '20px', fontFamily: FONT_UI, color: '#ffcc00', fontStyle: 'bold'
     })
     c.add(this.dlgName)
 
     this.dlgBody = scene.add.text(-270, -14, '', {
-      fontSize: '15px', fontFamily: 'Arial', color: '#ffffff',
+      fontSize: '16px', fontFamily: FONT_UI, color: '#ffffff',
       wordWrap: { width: 540 }, lineSpacing: 6
     })
     c.add(this.dlgBody)
 
     this.dlgHint = scene.add.text(270, 40, '', {
-      fontSize: '12px', fontFamily: 'Arial', color: '#aaaacc'
+      fontSize: '12px', fontFamily: FONT_UI, color: '#aaaacc'
     }).setOrigin(1, 1)
     c.add(this.dlgHint)
+
+    // 点按对话框任意处继续（触屏）；桌面端点按也生效，不冲突
+    c.setInteractive(new Geom.Rectangle(-300, -60, 600, 120), Geom.Rectangle.Contains)
+    c.on('pointerdown', () => this.onDialogueTap?.())
 
     this.dialogue = c
   }
 
-  openDialogue(name, lines, hint = '[E] 继续') {
+  openDialogue(name, lines, hint = null) {
     this.dlgName.setText(name)
     this.dlgBody.setText(lines[0])
-    this.dlgHint.setText(lines.length > 1 ? hint : '[E] 结束')
+    const cont = hint ?? (this.touch ? '「交谈」继续' : '[E] 继续')
+    const end = this.touch ? '「交谈」结束' : '[E] 结束'
+    this.dlgHint.setText(lines.length > 1 ? cont : end)
     this.dialogue.setVisible(true)
   }
 
@@ -320,13 +333,13 @@ export class Hud {
     const bg = scene.add.rectangle(0, 0, 460, 84, 0x0d0f18, 0.86).setStrokeStyle(2, 0xffcc00)
     c.add(bg)
 
-    this.bannerTitle = scene.add.text(0, -14, '', {
-      fontSize: '28px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+    this.bannerTitle = scene.add.text(0, -16, '', {
+      fontSize: '34px', fontFamily: FONT_TITLE, color: '#ffcc00'
     }).setOrigin(0.5)
     c.add(this.bannerTitle)
 
-    this.bannerSub = scene.add.text(0, 20, '', {
-      fontSize: '14px', fontFamily: 'Arial', color: '#ffffff'
+    this.bannerSub = scene.add.text(0, 22, '', {
+      fontSize: '14px', fontFamily: FONT_UI, color: '#ffffff'
     }).setOrigin(0.5)
     c.add(this.bannerSub)
 
@@ -359,12 +372,14 @@ export class Hud {
   // ---------- 提示条 ----------
   buildHints() {
     const scene = this.scene
+    const tip = this.touch
+      ? '左摇杆移动 · 右侧按钮交谈 / 出兵 · 点对话框继续'
+      : '方向键/WASD 移动 | E 对话/继续 | F 出兵/讨伐 | C 整备 | M 城池 | L 关卡'
     const inst = scene.add.container(512, 22).setDepth(100).setScrollFactor(0)
     const bg = scene.add.rectangle(0, 0, 470, 26, 0x000000, 0.6).setStrokeStyle(1, 0xffcc00)
     inst.add(bg)
-    inst.add(scene.add.text(0, 0,
-      '方向键/WASD 移动 | E 对话/继续 | F 出兵/讨伐 | C 整备 | M 城池 | L 关卡',
-      { fontSize: '11px', fontFamily: 'Arial', color: '#cccccc' }
+    inst.add(scene.add.text(0, 0, tip,
+      { fontSize: '11px', fontFamily: FONT_UI, color: '#cccccc' }
     ).setOrigin(0.5))
   }
 

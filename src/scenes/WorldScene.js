@@ -10,6 +10,7 @@ import { MonsterField } from '../world/MonsterField.js'
 import { Hud } from '../ui/Hud.js'
 import { Panel } from '../ui/Panel.js'
 import { StageSelect } from '../ui/StageSelect.js'
+import { TouchControls, isTouchPrimary } from '../ui/TouchControls.js'
 import { CITIES, CITY_BY_ID, CAPITAL_ID, canAttack, ownedCities, totalTroops } from '../data/cities.js'
 import {
   growAll, defenderPower, resolveBattle, troopCount,
@@ -47,6 +48,10 @@ export class WorldScene extends Scene {
   }
 
   create() {
+    // 触屏优先的设备（手机/平板）走触屏操控，桌面端保持键鼠不变
+    this.isTouch = isTouchPrimary()
+    this._touchVisible = false
+
     // 先定关卡：归属、兵力、军营等级、各城难度都由它决定，
     // 必须在建城（城门落闸/开门跟着归属走）之前落定。
     applyStage(DEFAULT_STAGE)
@@ -58,8 +63,8 @@ export class WorldScene extends Scene {
 
     this.createPlayer()
     this.setupCamera()
-    this.hud = new Hud(this)
-    this.panel = new Panel(this)
+    this.hud = new Hud(this, { touch: this.isTouch })
+    this.panel = new Panel(this, { touch: this.isTouch })
     this.panel.onClose = () => this.unlockPlayer()
     this.fx = new BattleFx(this)
     this.field = new MonsterField(this, this.terrain, this.builder)
@@ -71,8 +76,18 @@ export class WorldScene extends Scene {
     this.hud.refreshLedger()
 
     this.createInteractionUi()
+    // 触屏操控：左侧摇杆移动，右侧按钮映射 E/F/C/M/L
+    if (this.isTouch) {
+      this.touch = new TouchControls(this, code => this.routeKey(code))
+      this.touch.setVisible(false)
+      // 对话框点按继续，不用再找按键
+      this.hud.onDialogueTap = () => {
+        if (this.isTalking && !this.stageSelect?.open) this.advanceDialogue()
+      }
+    }
     // 开场不是一句话就放人，而是先让玩家选一关：难度不同，玩法差别很大
     this.stageSelect = new StageSelect(this, {
+      touch: this.isTouch,
       confirm: index => this.startStage(index),
       // 中途按 L 打开后又能取消：必须把"选关中"的冻结状态解开，
       // 否则玩家会卡在一个看不见的暂停里。
@@ -156,18 +171,21 @@ export class WorldScene extends Scene {
   }
 
   setupControls() {
-    this.cursors = this.input.keyboard.createCursorKeys()
-    this.wasd = this.input.keyboard.addKeys({
+    // 纯触屏环境下 keyboard 插件可能不存在，守卫一下
+    const kb = this.input.keyboard
+    if (!kb) return
+    this.cursors = kb.createCursorKeys()
+    this.wasd = kb.addKeys({
       up: Input.Keyboard.KeyCodes.W,
       down: Input.Keyboard.KeyCodes.S,
       left: Input.Keyboard.KeyCodes.A,
       right: Input.Keyboard.KeyCodes.D
     })
-    this.interactKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.E)
-    this.attackKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.F)
-    this.ledgerKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.M)
-    this.developKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.C)
-    this.stageKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.L)
+    this.interactKey = kb.addKey(Input.Keyboard.KeyCodes.E)
+    this.attackKey = kb.addKey(Input.Keyboard.KeyCodes.F)
+    this.ledgerKey = kb.addKey(Input.Keyboard.KeyCodes.M)
+    this.developKey = kb.addKey(Input.Keyboard.KeyCodes.C)
+    this.stageKey = kb.addKey(Input.Keyboard.KeyCodes.L)
 
     this.interactKey.on('down', () => this.routeKey('KeyE'))
     this.attackKey.on('down', () => this.routeKey('KeyF'))
@@ -212,6 +230,13 @@ export class WorldScene extends Scene {
     else if (code === 'KeyM') this.hud.toggleLedger()
     else if (code === 'KeyC') this.openDevelopPanel()
     else if (code === 'KeyL') this.openStageSelect()
+  }
+
+  // 按键提示文案：桌面显示 [E]，触屏显示对应的动作按钮名
+  keyTip(code, text) {
+    if (!this.isTouch) return `[${code}] ${text}`
+    const name = { E: '交谈', F: '出兵', C: '整备', M: '名册', L: '关卡' }[code] || code
+    return `「${name}」${text}`
   }
 
   // ---------- 关卡 ----------
@@ -453,7 +478,7 @@ export class WorldScene extends Scene {
     this.lockPlayer()
     this.faceTowards(camp.x, camp.y)
     const lines = this.monsterLines(camp)
-    this.hud.openDialogue(camp.name, lines, '[F] 讨伐')
+    this.hud.openDialogue(camp.name, lines, this.keyTip('F', '讨伐'))
   }
 
   monsterLines(camp) {
@@ -695,7 +720,7 @@ export class WorldScene extends Scene {
     const sideName = { n: '北门', s: '南门', w: '西门', e: '东门' }[gate.side]
 
     let line2
-    let hint = '[E] 结束'
+    let hint = this.keyTip('E', '结束')
     if (status.state === 'own') {
       line2 = '此处已是你的产业，四门随时为你敞开。'
     } else if (status.state === 'attackable') {
@@ -704,7 +729,7 @@ export class WorldScene extends Scene {
       line2 = `此城与你的领地接壤，可以出兵攻打。\n` +
         `难度【${diff.name}】　守军 步${city.troops.infantry} 骑${city.troops.cavalry}，城防 ${def}。\n` +
         `我军总兵力 ${mine}。${this.aggressionHint(diff)}`
-      hint = `[E] 结束   [F] 出兵攻打（守方城防 ${def}）`
+      hint = `${this.keyTip('E', '结束')}   ${this.keyTip('F', `出兵攻打（守方城防 ${def}）`)}`
     } else {
       line2 = '此城与你的领地并不相邻。\n兵不相接，强攻只会自取其辱。'
     }
@@ -737,7 +762,7 @@ export class WorldScene extends Scene {
     }
     const hint = this.currentTarget.kind === 'gate' && this.dialogueIndex === 1
       ? this.gateHint(this.currentTarget.gate)
-      : '[E] 继续'
+      : this.keyTip('E', '继续')
     this.hud.setDialogueLine(lines[this.dialogueIndex], hint)
   }
 
@@ -769,9 +794,10 @@ export class WorldScene extends Scene {
 
   gateHint(gate) {
     if (Hud.gateStatus(gate.city).state === 'attackable') {
-      return `[E] 结束   [F] 出兵攻打（守方城防 ${Math.round(defenderPower(gate.city))}）`
+      const def = Math.round(defenderPower(gate.city))
+      return `${this.keyTip('E', '结束')}   ${this.keyTip('F', `出兵攻打（守方城防 ${def}）`)}`
     }
-    return '[E] 结束'
+    return this.keyTip('E', '结束')
   }
 
   closeDialogue() {
@@ -842,6 +868,10 @@ export class WorldScene extends Scene {
     if (this.selecting) {
       this.indicator?.setVisible(false)
       this.closeLabel?.setVisible(false)
+      if (this.touch && this._touchVisible) {
+        this._touchVisible = false
+        this.touch.setVisible(false)
+      }
       return
     }
     this.handleMovement()
@@ -851,6 +881,14 @@ export class WorldScene extends Scene {
       camps: this.field?.aliveCount()
     })
     if (this.panel.open) this.panel.refresh()
+    // 触屏键只在能操作时出现：面板/选关/战斗动画时藏起来
+    if (this.touch) {
+      const show = !this.panel.open && !this.fx?.active
+      if (show !== this._touchVisible) {
+        this._touchVisible = show
+        this.touch.setVisible(show)
+      }
+    }
   }
 
   handleMovement() {
@@ -860,14 +898,21 @@ export class WorldScene extends Scene {
     if (this.fx?.active) return
     let vx = 0
     let vy = 0
-    if (this.cursors.left.isDown || this.wasd.left.isDown) vx = -1
-    else if (this.cursors.right.isDown || this.wasd.right.isDown) vx = 1
-    if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -1
-    else if (this.cursors.down.isDown || this.wasd.down.isDown) vy = 1
+    const joy = this.touch?.moveVec
+    if (joy && (joy.x !== 0 || joy.y !== 0)) {
+      // 触屏摇杆：模拟量直接驱动，推满即全速
+      vx = joy.x
+      vy = joy.y
+    } else if (this.cursors) {
+      if (this.cursors.left.isDown || this.wasd.left.isDown) vx = -1
+      else if (this.cursors.right.isDown || this.wasd.right.isDown) vx = 1
+      if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -1
+      else if (this.cursors.down.isDown || this.wasd.down.isDown) vy = 1
 
-    if (vx !== 0 && vy !== 0) {
-      vx *= 0.707
-      vy *= 0.707
+      if (vx !== 0 && vy !== 0) {
+        vx *= 0.707
+        vy *= 0.707
+      }
     }
     this.player.body.setVelocity(vx * this.playerSpeed, vy * this.playerSpeed)
 
@@ -898,13 +943,14 @@ export class WorldScene extends Scene {
           : { x: target.npc.x, y: target.npc.y }
     this.indicator.setPosition(pos.x, pos.y + Math.sin(this.time.now / 280) * 3).setVisible(true)
 
+    const act = this.isTouch ? '交谈' : '[E]'
     const label = target.kind === 'gate'
-      ? `[E] ${target.gate.city.name}${sideCn(target.gate.side)}`
+      ? `${act} ${target.gate.city.name}${sideCn(target.gate.side)}`
       : target.kind === 'barrack'
-        ? `[E] ${BARRACK_CN[target.barrack.key]} · 整备`
+        ? `${act} ${BARRACK_CN[target.barrack.key]} · 整备`
         : target.kind === 'monster'
-          ? `[E] ${target.camp.name} · 讨伐`
-          : `[E] ${target.npc.npcData.name}`
+          ? `${act} ${target.camp.name} · 讨伐`
+          : `${act} ${target.npc.npcData.name}`
     this.closeLabel.setText(label).setPosition(pos.x, pos.y - 22).setVisible(true)
   }
 

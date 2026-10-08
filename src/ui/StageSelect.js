@@ -9,18 +9,23 @@
 
 import { STAGES, currentStage, stageSummary, stageIndex } from '../data/stages.js'
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../data/difficulty.js'
+import { FONT_UI, FONT_TITLE, makeButton } from './theme.js'
 
 const W = 850
-const H = 640
+const H = 680
 const ROW_H = 40
 const ROW_X = -W / 2 + 30
-const LIST_Y = -172
+const LIST_Y = -150
+const DESC_Y = LIST_Y + STAGES.length * ROW_H + 8
+const LEGEND_Y = DESC_Y + 52
+const FOOT_Y = H / 2 - 40
 
 export class StageSelect {
   constructor(scene, handlers = {}) {
     this.scene = scene
     this.onConfirm = handlers.confirm || null
     this.onCancel = handlers.cancel || null
+    this.touch = !!handlers.touch
     this.choice = 0
     this.armed = false
     this.firstRun = true
@@ -40,16 +45,30 @@ export class StageSelect {
     this.c = c
 
     c.add(scene.add.rectangle(0, 0, W, H, 0x0b0e17, 0.96).setStrokeStyle(2, 0xffcc00))
-    c.add(scene.add.text(0, -H / 2 + 26, '九 城 争 霸', {
-      fontSize: '28px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+    c.add(scene.add.rectangle(0, -H / 2 + 2, W - 4, 3, 0xffcc00, 0.85))
+
+    // 主标题：书法体「战国争霸」
+    c.add(scene.add.text(0, -H / 2 + 16, '战国争霸', {
+      fontSize: '54px', fontFamily: FONT_TITLE, color: '#ffcc00'
+    }).setOrigin(0.5, 0))
+    c.add(scene.add.text(0, -H / 2 + 76, '九 城 争 霸 · 选 关', {
+      fontSize: '15px', fontFamily: FONT_UI, color: '#ffe27a'
     }).setOrigin(0.5, 0))
 
-    this.intro = scene.add.text(0, -H / 2 + 62,
+    // 装饰线：两线一菱
+    const dy = -H / 2 + 106
+    c.add(scene.add.rectangle(-155, dy, 270, 1, 0x8a6f2a, 0.9))
+    c.add(scene.add.rectangle(155, dy, 270, 1, 0x8a6f2a, 0.9))
+    const dia = scene.add.rectangle(0, dy, 9, 9, 0xffcc00, 0.95)
+    dia.setAngle(45)
+    c.add(dia)
+
+    this.intro = scene.add.text(0, -H / 2 + 120,
       '你是青禾城城主。地图上还有八座敌城，各有城主坐镇——他们的凶悍程度，就是这一局的难度。\n' +
       '挑一关开始：越往下的关卡，敌人开局越强、来犯越勤、野外营寨也越硬。\n' +
       '城外旷野还有狼群与山贼盘踞，荡平营寨就能收编兵员，是开局最快的扩军路子。',
       {
-        fontSize: '13px', fontFamily: 'Arial', color: '#c8d4e4',
+        fontSize: '13px', fontFamily: FONT_UI, color: '#c8d4e4',
         align: 'center', lineSpacing: 6
       }).setOrigin(0.5, 0)
     c.add(this.intro)
@@ -59,17 +78,21 @@ export class StageSelect {
       const hl = scene.add.rectangle(0, y + ROW_H / 2 - 4, W - 40, ROW_H - 6, 0x1b2436, 0)
         .setStrokeStyle(1, 0x3d4f6b)
       const name = scene.add.text(ROW_X, y + 9, '', {
-        fontSize: '15px', fontFamily: 'Arial', color: '#ffffff'
+        fontSize: '15px', fontFamily: FONT_UI, color: '#ffffff'
       })
       const plan = scene.add.text(W / 2 - 30, y + 11, '', {
-        fontSize: '12px', fontFamily: 'Arial', color: '#9fb4cc'
+        fontSize: '12px', fontFamily: FONT_UI, color: '#9fb4cc'
       }).setOrigin(1, 0)
       c.add([hl, name, plan])
+      if (this.touch) {
+        hl.setInteractive({ useHandCursor: true })
+        hl.on('pointerdown', () => this.tapRow(i))
+      }
       return { hl, name, plan, stage }
     })
 
-    this.desc = scene.add.text(0, LIST_Y + STAGES.length * ROW_H + 26, '', {
-      fontSize: '13px', fontFamily: 'Arial', color: '#ffe8a8',
+    this.desc = scene.add.text(0, DESC_Y, '', {
+      fontSize: '13px', fontFamily: FONT_UI, color: '#ffe8a8',
       align: 'center', wordWrap: { width: W - 80 }, lineSpacing: 6
     }).setOrigin(0.5, 0)
     c.add(this.desc)
@@ -77,15 +100,40 @@ export class StageSelect {
     const legend = DIFFICULTY_ORDER.map(k => DIFFICULTIES[k]).map(d =>
       `${d.name}：开局 ×${d.startTroops}　来犯门槛 ${d.assault.edge}×　准备 ${Math.round(d.assault.warn * 2)}s`
     ).join('\n')
-    this.legend = scene.add.text(-W / 2 + 30, LIST_Y + STAGES.length * ROW_H + 92, legend, {
-      fontSize: '11px', fontFamily: 'Arial', color: '#8899aa', lineSpacing: 3
+    this.legend = scene.add.text(-W / 2 + 30, LEGEND_Y, legend, {
+      fontSize: '11px', fontFamily: FONT_UI, color: '#8899aa', lineSpacing: 3
     })
     c.add(this.legend)
 
-    this.foot = scene.add.text(0, H / 2 - 34, '', {
-      fontSize: '13px', fontFamily: 'Arial', color: '#ffcc00'
+    this.foot = scene.add.text(0, FOOT_Y, '', {
+      fontSize: '13px', fontFamily: FONT_UI, color: '#ffcc00'
     }).setOrigin(0.5, 0)
     c.add(this.foot)
+
+    if (this.touch) this.buildTouchButtons()
+  }
+
+  // 触屏：底部大按钮代替键盘。开始/重开走同一套 confirm 逻辑
+  // （中途重开仍需按两次，第二次才真的推倒重来）。
+  buildTouchButtons() {
+    const y = H / 2 - 34
+    this.startBtn = makeButton(this.scene, this.c, 110, y, 210, 38, '开始这一关',
+      () => this.confirm(), { strokeWidth: 2 })
+    this.cancelBtn = makeButton(this.scene, this.c, -110, y, 150, 38, '返回',
+      () => this.hide(true))
+    this.foot.setVisible(false)
+  }
+
+  // 触屏点行：选中；开场时连点两下直接开局（反正只是开始）
+  tapRow(i) {
+    if (!this.visible) return
+    if (this.choice === i && this.firstRun) {
+      this.confirm()
+      return
+    }
+    this.choice = i
+    this.armed = false
+    this.refresh()
   }
 
   show(firstRun = false) {
@@ -97,7 +145,16 @@ export class StageSelect {
     // 靠时间戳把它滤掉，否则"按 L 打开"会被自己立刻关掉。
     this.openedAt = performance.now()
     this.c.setVisible(true)
-    this.scene.input.keyboard.on('keydown', this.keyHandler)
+    // 入场：淡入 + 轻微放大，选关界面也是游戏的"标题屏"
+    this.c.setAlpha(0).setScale(0.97)
+    this.scene.tweens.add({
+      targets: this.c,
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      ease: 'Cubic.out'
+    })
+    this.scene.input.keyboard?.on('keydown', this.keyHandler)
     this.refresh()
   }
 
@@ -106,7 +163,7 @@ export class StageSelect {
     this.visible = false
     this.armed = false
     this.c.setVisible(false)
-    this.scene.input.keyboard.off('keydown', this.keyHandler)
+    this.scene.input.keyboard?.off('keydown', this.keyHandler)
     if (cancelled) this.onCancel?.()
   }
 
@@ -175,5 +232,15 @@ export class StageSelect {
       this.foot.setText(`↑↓ 选关　[E] 重开选中的关卡　[M/Esc] 返回　·　当前：第${now.rank}关 ${now.name}`)
     }
     this.foot.setColor(this.armed ? '#ff9a9a' : '#ffcc00')
+
+    // 触屏：按钮文案跟着状态走（中途重开第二次才真的清空进度）
+    if (this.touch) {
+      const label = this.firstRun ? '开始这一关' : this.armed ? '确认重开？' : '重开此关'
+      this.startBtn.t.setText(label)
+      const sx = this.firstRun ? 0 : 110
+      this.startBtn.bg.setX(sx)
+      this.startBtn.t.setX(sx)
+      this.cancelBtn.setVisible(!this.firstRun)
+    }
   }
 }

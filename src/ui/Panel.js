@@ -6,6 +6,7 @@ import {
 } from '../data/military.js'
 import { ownedCities, totalTroops, totalGold, CITIES } from '../data/cities.js'
 import { difficultyOf, difficultyTag } from '../data/difficulty.js'
+import { FONT_UI, FONT_TITLE, makeButton } from './theme.js'
 
 // 两种模式共用一个面板：城中整备（升级/练兵）与出兵（攻城 / 讨伐野外营寨）。
 // 键位沿用玩家已确认的方案：方向键移动光标，E 确认，Esc/M 关闭；
@@ -41,8 +42,9 @@ const CITY_VIEW = {
 }
 
 export class Panel {
-  constructor(scene) {
+  constructor(scene, opts = {}) {
     this.scene = scene
+    this.touch = !!opts.touch
     this.mode = null
     this.row = 0
     this.col = 0
@@ -65,19 +67,21 @@ export class Panel {
 
     this.c.add(scene.add.rectangle(PW / 2, h / 2, PW, h, 0x0b0e17, 0.95)
       .setStrokeStyle(2, 0xffcc00))
+    // 顶部金线压边
+    this.c.add(scene.add.rectangle(PW / 2, 2, PW - 4, 3, 0xffcc00, 0.85))
 
-    this.title = scene.add.text(24, 18, '', {
-      fontSize: '19px', fontFamily: 'Arial', color: '#ffcc00', fontStyle: 'bold'
+    this.title = scene.add.text(24, 16, '', {
+      fontSize: '24px', fontFamily: FONT_TITLE, color: '#ffcc00'
     })
     this.sub = scene.add.text(PW - 24, 22, '', {
-      fontSize: '13px', fontFamily: 'Arial', color: '#9fb4cc'
+      fontSize: '13px', fontFamily: FONT_UI, color: '#9fb4cc'
     }).setOrigin(1, 0)
     this.c.add([this.title, this.sub])
 
     this.headerTexts = []
     for (let i = 0; i < COLS; i++) {
       const t = scene.add.text(COL_X[i], HEAD_H - 22, '', {
-        fontSize: '13px', fontFamily: 'Arial', color: '#8899aa'
+        fontSize: '13px', fontFamily: FONT_UI, color: '#8899aa'
       })
       this.headerTexts.push(t)
       this.c.add(t)
@@ -89,15 +93,15 @@ export class Panel {
       const hl = scene.add.rectangle(PW / 2, y + ROW_H / 2 - 4, PW - 16, ROW_H - 6, 0x1b2436, 0)
         .setStrokeStyle(1, 0x3d4f6b)
       const name = scene.add.text(24, y + 2, '', {
-        fontSize: '14px', fontFamily: 'Arial', color: '#ffffff'
+        fontSize: '14px', fontFamily: FONT_UI, color: '#ffffff'
       })
       const sub = scene.add.text(24, y + 20, '', {
-        fontSize: '11px', fontFamily: 'Arial', color: '#8899aa'
+        fontSize: '11px', fontFamily: FONT_UI, color: '#8899aa'
       })
       const cols = []
       for (let c = 0; c < COLS; c++) {
         const t = scene.add.text(COL_X[c], y + 8, '', {
-          fontSize: '13px', fontFamily: 'Arial', color: '#cccccc'
+          fontSize: '13px', fontFamily: FONT_UI, color: '#cccccc'
         })
         cols.push(t)
       }
@@ -106,15 +110,71 @@ export class Panel {
     }
 
     this.foot = scene.add.text(24, HEAD_H + BODY_H + 6, '', {
-      fontSize: '13px', fontFamily: 'Arial', color: '#ffffff',
+      fontSize: '13px', fontFamily: FONT_UI, color: '#ffffff',
       wordWrap: { width: PW - 48 }
     })
     this.c.add(this.foot)
 
     this.hint = scene.add.text(24, HEAD_H + BODY_H + 44, '', {
-      fontSize: '12px', fontFamily: 'Arial', color: '#8899aa'
+      fontSize: '12px', fontFamily: FONT_UI, color: '#8899aa'
     })
     this.c.add(this.hint)
+
+    this.buildTouchUi()
+  }
+
+  // ---------- 触屏 ----------
+  // 行点选 + 底部动作按钮，复用同一套 handleKey 逻辑。
+  buildTouchUi() {
+    if (!this.touch) return
+    const scene = this.scene
+
+    // 点一行即把光标移到该行（只选不执行，避免误触花钱/开战）
+    this.rowViews.forEach((r, i) => {
+      r.hl.setInteractive({ useHandCursor: true })
+      r.hl.on('pointerdown', () => this.tapRow(i))
+    })
+
+    // 右上角关闭
+    this.closeBtn = makeButton(scene, this.c, PW - 44, 28, 64, 36, '✕',
+      () => this.close(), { fontSize: '16px' })
+
+    // 底部动作按钮：按模式切换两组，键盘提示行让位
+    const y = HEAD_H + BODY_H + 42
+    this.devBtns = [
+      makeButton(scene, this.c, 84, y, 120, 34, '升级', () => this.handleKey('KeyE')),
+      makeButton(scene, this.c, 216, y, 120, 34, '练兵', () => this.handleKey('KeyF')),
+      makeButton(scene, this.c, PW - 84, y, 120, 34, '关闭', () => this.close())
+    ]
+    this.siegeBtns = [
+      makeButton(scene, this.c, 72, y, 100, 34, '步兵 -10', () => this.handleKey('ArrowLeft'), { fontSize: '13px' }),
+      makeButton(scene, this.c, 182, y, 100, 34, '步兵 +10', () => this.handleKey('ArrowRight'), { fontSize: '13px' }),
+      makeButton(scene, this.c, 292, y, 100, 34, '骑兵 -5', () => this.handleKey('KeyS'), { fontSize: '13px' }),
+      makeButton(scene, this.c, 402, y, 100, 34, '骑兵 +5', () => this.handleKey('KeyW'), { fontSize: '13px' }),
+      makeButton(scene, this.c, 512, y, 100, 34, '全军', () => this.handleKey('KeyA')),
+      makeButton(scene, this.c, 622, y, 100, 34, '撤回', () => this.handleKey('KeyZ')),
+      makeButton(scene, this.c, 792, y, 120, 34, '出兵', () => this.handleKey('KeyE'), { strokeWidth: 2.5 }),
+      makeButton(scene, this.c, 920, y, 100, 34, '取消', () => this.close())
+    ]
+    this.hint.setVisible(false)
+    this.updateTouchUi(false, false)
+  }
+
+  tapRow(i) {
+    if (!this.open) return
+    if (!this.rows()[i]) return
+    if (this.row !== i) {
+      this.row = i
+      this.refresh()
+    }
+  }
+
+  updateTouchUi(showDev, showSiege) {
+    if (!this.touch) return
+    const any = showDev || showSiege
+    this.closeBtn?.setVisible(any)
+    for (const b of this.devBtns || []) b.setVisible(showDev)
+    for (const b of this.siegeBtns || []) b.setVisible(showSiege)
   }
 
   // ---------- 开合 ----------
@@ -152,6 +212,7 @@ export class Panel {
     this.target = null
     this.onConfirm = null
     this.view = CITY_VIEW
+    this.updateTouchUi(false, false)
     this.c.setVisible(false)
     this.onClose?.()
   }
@@ -353,6 +414,7 @@ export class Panel {
     if (this.row >= n) this.row = Math.max(0, n - 1)
     if (this.mode === 'develop') this.refreshDevelop()
     else this.refreshSiege()
+    this.updateTouchUi(this.mode === 'develop', this.mode === 'siege')
   }
 
   refreshDevelop() {

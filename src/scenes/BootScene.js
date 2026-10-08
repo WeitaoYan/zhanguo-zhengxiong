@@ -5,7 +5,18 @@ export class BootScene extends Scene {
     super('BootScene')
   }
 
-  create() {
+  async create() {
+    // 等网页字体就绪再进游戏，界面才能用上书法体/宋体中文；
+    // 离线或加载失败也不阻塞，直接用系统字体兜底。
+    try {
+      if (document.fonts?.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise(resolve => setTimeout(resolve, 2500))
+        ])
+      }
+    } catch { /* 忽略，走兜底字体 */ }
+
     this.generateTerrainTextures()
     this.generateObjectTextures()
     this.generateFortressTextures()
@@ -15,6 +26,8 @@ export class BootScene extends Scene {
     this.generateMonsterTextures()
     this.generateMonsterBattleTextures()
     this.generateUITextures()
+    // 贴图全部就绪：撤掉 HTML 加载屏，把舞台交给 WorldScene
+    document.getElementById('loading')?.classList.add('hide')
     this.scene.start('WorldScene')
   }
 

@@ -21,6 +21,8 @@ const config = {
     // 叠在 body 的 flex 居中上会把画布整体推歪。居中交给 CSS，这里必须关掉。
     autoCenter: Scale.NO_CENTER
   },
+  // 移动端：禁止长按弹出系统菜单，避免误触打断操作
+  disableContextMenu: true,
   pixelArt: false,
   roundPixels: true
 }
