@@ -99,14 +99,46 @@ export class WorldScene extends Scene {
     this.stageSelect.show(true)
     this.selecting = true
 
-    // ?debug=1 临时诊断：统计 DOM 层 vs Phaser 层的 pointerdown，
-    // 定位"点击无反应"是事件没进页面还是没进 Phaser。
+    // ?debug=1 临时诊断2：对第2关行对象手动复刻 Phaser 命中测试的每一步，
+    // 定位 inputCandidate / willRender / 矩阵换算 / hitArea 到底断在哪。
     // 诊断完就删掉，不进正式版本。
     if (new URLSearchParams(window.location.search).get('debug') === '1') {
-      const st = { dom: 0, phaser: 0 }
+      const st = { dom: 0, phaser: 0, hit: '（尚未点击）' }
       window.addEventListener('pointerdown', () => st.dom++, true)
-      this.input.on('pointerdown', () => st.phaser++)
-      const dbg = this.add.text(8, 648, '', {
+      this.input.on('pointerdown', (pointer) => {
+        st.phaser++
+        try {
+          const ip = this.input
+          const cam = this.cameras.main
+          const ss = this.stageSelect
+          const hl = ss?.rows[1]?.hl
+          if (!hl) { st.hit = 'no hl'; return }
+          const list = ip._list || []
+          const inList = list.includes(hl)
+          const cand = ip.manager.inputCandidate(hl, cam)
+          const wrHl = hl.willRender(cam)
+          const wrC = ss.c.willRender(cam)
+          const TM = Phaser.GameObjects.Components.TransformMatrix
+          const mtx = new TM()
+          const pm = new TM()
+          hl.getWorldTransformMatrix(mtx, pm)
+          const pt = { x: 0, y: 0 }
+          mtx.applyInverse(pointer.x, pointer.y, pt)
+          const lx = pt.x + hl.displayOriginX
+          const ly = pt.y + hl.displayOriginY
+          const ha = hl.input.hitArea
+          const inHA = lx >= ha.x && lx <= ha.x + ha.width && ly >= ha.y && ly <= ha.y + ha.height
+          const found = ip.hitTestPointer(pointer)
+          st.hit =
+            `click=(${Math.round(pointer.x)},${Math.round(pointer.y)}) ` +
+            `_list=${list.length} inList=${inList} cand=${cand}\n` +
+            `wrHl=${wrHl} wrC=${wrC} cScale=${ss.c.scaleX.toFixed(2)} ` +
+            `mtx=(${mtx.tx.toFixed(0)},${mtx.ty.toFixed(0)}) local=(${lx.toFixed(0)},${ly.toFixed(0)})\n` +
+            `hitArea=(${ha.x},${ha.y},${ha.width},${ha.height}) origin=(${hl.displayOriginX},${hl.displayOriginY}) inHA=${inHA}\n` +
+            `hitTestPointer found=${found.length}`
+        } catch (e) { st.hit = 'ERR ' + e.message }
+      })
+      const dbg = this.add.text(8, 560, '', {
         fontSize: '13px', fontFamily: 'monospace', color: '#00ff00',
         backgroundColor: 'rgba(0,0,0,0.8)', padding: { x: 6, y: 4 },
         lineSpacing: 4
@@ -121,7 +153,8 @@ export class WorldScene extends Scene {
             `domDown=${st.dom} phaserDown=${st.phaser} input.enabled=${this.input.enabled}\n` +
             `touch=${this.isTouch} ss.visible=${ss?.visible} c.visible=${ss?.c.visible}\n` +
             `row.input=${!!r0?.input} row.enabled=${!!(r0?.input && r0.input.enabled)}\n` +
-            `btn.input=${!!(ss?.startBtn && ss.startBtn.bg.input)}`
+            `btn.input=${!!(ss?.startBtn && ss.startBtn.bg.input)}\n` +
+            `${st.hit}`
           )
         }
       })
