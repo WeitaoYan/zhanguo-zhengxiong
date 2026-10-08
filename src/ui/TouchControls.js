@@ -1,7 +1,7 @@
 // 移动端触屏控制：左侧虚拟摇杆（移动）+ 右侧动作按钮（映射键盘按键）。
 // 只在 pointer: coarse 的触屏设备上创建，桌面端完全不受影响。
 
-import { C, makeRoundButton } from './theme.js'
+import { C, makeRoundButton, fixScroll } from './theme.js'
 
 // 是否以触屏为主要输入（手机/平板）。带触屏的桌面笔记本不会误判。
 // 调试口：URL 加 ?touch=1 强制开启，?touch=0 强制关闭。
@@ -34,6 +34,9 @@ export class TouchControls {
     this.c = scene.add.container(0, 0).setDepth(250).setScrollFactor(0)
     this.buildJoystick()
     this.buildButtons()
+    // 修复：摇杆/按钮是 scrollFactor(0) 容器的孩子，孩子默认 scrollFactor 1
+    // 会导致 hitTest 坐标错位（错位量 = 相机 scroll），触屏点按全部miss。
+    fixScroll(this.c)
     this.hookSceneInput()
   }
 

@@ -6,7 +6,7 @@ import {
 } from '../data/military.js'
 import { ownedCities, totalTroops, totalGold, CITIES } from '../data/cities.js'
 import { difficultyOf, difficultyTag } from '../data/difficulty.js'
-import { FONT_UI, FONT_TITLE, makeButton } from './theme.js'
+import { FONT_UI, FONT_TITLE, makeButton, fixScroll } from './theme.js'
 
 // 两种模式共用一个面板：城中整备（升级/练兵）与出兵（攻城 / 讨伐野外营寨）。
 // 键位沿用玩家已确认的方案：方向键移动光标，E 确认，Esc/M 关闭；
@@ -121,12 +121,15 @@ export class Panel {
     this.c.add(this.hint)
 
     this.buildTouchUi()
+    // 修复：容器 scrollFactor(0) 不会继承给孩子，hitTest 会用孩子的
+    // scrollFactor(1) 换算坐标导致整体错位。子树统一归零。
+    fixScroll(this.c)
   }
 
   // ---------- 触屏 ----------
   // 行点选 + 底部动作按钮，复用同一套 handleKey 逻辑。
+  // 行常驻可交互（桌面鼠标点选也走这里）；按钮只在触屏下建，桌面端用键盘。
   buildTouchUi() {
-    if (!this.touch) return
     const scene = this.scene
 
     // 点一行即把光标移到该行（只选不执行，避免误触花钱/开战）
@@ -134,6 +137,8 @@ export class Panel {
       r.hl.setInteractive({ useHandCursor: true })
       r.hl.on('pointerdown', () => this.tapRow(i))
     })
+
+    if (!this.touch) return
 
     // 右上角关闭
     this.closeBtn = makeButton(scene, this.c, PW - 44, 28, 64, 36, '✕',

@@ -86,3 +86,18 @@ export function makeRoundButton(scene, parent, x, y, r, label, cb, opts = {}) {
     setVisible(v) { bg.setVisible(v); t.setVisible(v) }
   }
 }
+
+// 把容器及其所有子孙的 scrollFactor 设为 0。
+// 血泪教训：Container.setScrollFactor(0) 不会继承给孩子，而 Phaser 的
+// hitTest 用的是"被点对象自己"的 scrollFactor 做世界/屏幕坐标换算，
+// 渲染却按容器的来。孩子若保持默认 scrollFactor 1，点击命中测试会
+// 整体错位（错位量 = 相机 scroll），导致界面上看着对、点上去没反应。
+// 所有 scrollFactor(0) 的 UI 容器，build 完孩子后都要调一次这个。
+export function fixScroll(container) {
+  container.setScrollFactor(0)
+  container.each((child) => {
+    child.setScrollFactor(0)
+    if (child.type === 'Container' && child.each) fixScroll(child)
+  })
+  return container
+}

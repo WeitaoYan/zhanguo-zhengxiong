@@ -9,7 +9,7 @@
 
 import { STAGES, currentStage, stageSummary, stageIndex } from '../data/stages.js'
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../data/difficulty.js'
-import { FONT_UI, FONT_TITLE, makeButton } from './theme.js'
+import { FONT_UI, FONT_TITLE, makeButton, fixScroll } from './theme.js'
 
 const W = 850
 const H = 680
@@ -85,10 +85,10 @@ export class StageSelect {
         fontSize: '12px', fontFamily: FONT_UI, color: '#9fb4cc'
       }).setOrigin(1, 0)
       c.add([hl, name, plan])
-      if (this.touch) {
-        hl.setInteractive({ useHandCursor: true })
-        hl.on('pointerdown', () => this.tapRow(i))
-      }
+      // 行常驻可交互：触屏点选、桌面鼠标点选都走这里（之前只在 touch 下注册，
+      // 导致桌面端点击完全没反应，只能按键盘）。
+      hl.setInteractive({ useHandCursor: true })
+      hl.on('pointerdown', () => this.tapRow(i))
       return { hl, name, plan, stage }
     })
 
@@ -112,6 +112,10 @@ export class StageSelect {
     c.add(this.foot)
 
     if (this.touch) this.buildTouchButtons()
+
+    // 关键修复：容器设了 scrollFactor(0) 但孩子默认是 1，hitTest 会用孩子的
+    // scrollFactor 换算坐标，导致点击整体错位。子树统一归零。
+    fixScroll(c)
   }
 
   // 触屏：底部大按钮代替键盘。开始/重开走同一套 confirm 逻辑
@@ -231,11 +235,11 @@ export class StageSelect {
     this.desc.setText(stage.desc)
 
     if (this.firstRun) {
-      this.foot.setText('↑↓ 选关　数字键 1-8 直达　[E] 开始　·　E 对话　F 出兵/讨伐　C 整备　M 城池名册')
+      this.foot.setText('点击/↑↓ 选关　数字键 1-8 直达　[E]/再点已选关卡 开始　·　E 对话　F 出兵/讨伐　C 整备　M 城池名册')
     } else if (this.armed) {
       this.foot.setText(`再按一次 [E] 确认重开：${stage.name}（当前进度会全部清空）　[M/Esc] 取消`)
     } else {
-      this.foot.setText(`↑↓ 选关　[E] 重开选中的关卡　[M/Esc] 返回　·　当前：第${now.rank}关 ${now.name}`)
+      this.foot.setText(`点击/↑↓ 选关　[E] 重开选中的关卡　[M/Esc] 返回　·　当前：第${now.rank}关 ${now.name}`)
     }
     this.foot.setColor(this.armed ? '#ff9a9a' : '#ffcc00')
 
