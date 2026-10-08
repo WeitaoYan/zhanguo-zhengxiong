@@ -4,8 +4,12 @@
 import { C, makeRoundButton } from './theme.js'
 
 // 是否以触屏为主要输入（手机/平板）。带触屏的桌面笔记本不会误判。
+// 调试口：URL 加 ?touch=1 强制开启，?touch=0 强制关闭。
 export function isTouchPrimary() {
   try {
+    const qs = new URLSearchParams(window.location.search)
+    if (qs.get('touch') === '1') return true
+    if (qs.get('touch') === '0') return false
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
     const touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0
     return !!(coarse && touch)

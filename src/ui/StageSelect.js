@@ -17,8 +17,9 @@ const ROW_H = 40
 const ROW_X = -W / 2 + 30
 const LIST_Y = -150
 const DESC_Y = LIST_Y + STAGES.length * ROW_H + 8
-const LEGEND_Y = DESC_Y + 52
+const LEGEND_Y = DESC_Y + 44
 const FOOT_Y = H / 2 - 40
+const TOUCH_HINT_Y = H / 2 - 56
 
 export class StageSelect {
   constructor(scene, handlers = {}) {
@@ -116,10 +117,15 @@ export class StageSelect {
   // 触屏：底部大按钮代替键盘。开始/重开走同一套 confirm 逻辑
   // （中途重开仍需按两次，第二次才真的推倒重来）。
   buildTouchButtons() {
-    const y = H / 2 - 34
-    this.startBtn = makeButton(this.scene, this.c, 110, y, 210, 38, '开始这一关',
+    const y = H / 2 - 26
+    // 触屏下键盘提示行被藏掉了，这里补一句操作指引，不然用户不知道行可以点
+    this.touchHint = this.scene.add.text(0, TOUCH_HINT_Y, '👆 轻点选择关卡，再点「开始」', {
+      fontSize: '13px', fontFamily: FONT_UI, color: '#ffe27a'
+    }).setOrigin(0.5, 0)
+    this.c.add(this.touchHint)
+    this.startBtn = makeButton(this.scene, this.c, 110, y, 210, 36, '开始这一关',
       () => this.confirm(), { strokeWidth: 2 })
-    this.cancelBtn = makeButton(this.scene, this.c, -110, y, 150, 38, '返回',
+    this.cancelBtn = makeButton(this.scene, this.c, -110, y, 150, 36, '返回',
       () => this.hide(true))
     this.foot.setVisible(false)
   }
@@ -241,6 +247,9 @@ export class StageSelect {
       this.startBtn.bg.setX(sx)
       this.startBtn.t.setX(sx)
       this.cancelBtn.setVisible(!this.firstRun)
+      this.touchHint.setText(
+        this.firstRun ? '👆 轻点选择关卡，再点「开始」' : '👆 轻点选择，「重开」需按两次确认'
+      )
     }
   }
 }
