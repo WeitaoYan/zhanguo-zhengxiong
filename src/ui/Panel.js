@@ -149,6 +149,9 @@ export class Panel {
     this.devBtns = [
       makeButton(scene, this.c, 84, y, 120, 34, '升级', () => this.handleKey('KeyE')),
       makeButton(scene, this.c, 216, y, 120, 34, '练兵', () => this.handleKey('KeyF')),
+      // 左右切换升级分支（步兵营/骑兵营/军械库/神机营/城墙），之前漏了导致手机上切不动
+      makeButton(scene, this.c, 330, y, 64, 34, '◀', () => this.handleKey('ArrowLeft'), { fontSize: '16px' }),
+      makeButton(scene, this.c, 404, y, 64, 34, '▶', () => this.handleKey('ArrowRight'), { fontSize: '16px' }),
       makeButton(scene, this.c, PW - 84, y, 120, 34, '关闭', () => this.close())
     ]
     this.siegeBtns = [
